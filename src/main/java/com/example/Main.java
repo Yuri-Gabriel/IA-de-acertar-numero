@@ -31,24 +31,6 @@ public class Main {
         }
     }
 
-    public static void showSampleImages(DataSet trainData, DataSet testData) {
-        Random random = new Random();
-        
-        System.out.println("\n=== AMOSTRAS DE IMAGENS DE TREINAMENTO ===");
-        for (int i = 0; i < 10; i++) {
-            int idx = random.nextInt(trainData.images.size());
-            System.out.println("\nImagem de treinamento [" + idx + "] = " + trainData.labels[idx]);
-            printImage(trainData.images.get(idx));
-        }
-
-        // System.out.println("\n=== AMOSTRAS DE IMAGENS DE TESTE ===");
-        // for (int i = 0; i < 5; i++) {
-        //     int idx = random.nextInt(testData.images.size());
-        //     System.out.println("\nImagem de teste [" + idx + "] = " + testData.labels.get(idx));
-        //     printImage(testData.images.get(idx));
-        // }
-    }
-
     public static void printImage(double[][] image) {
         System.out.println("Visualização ASCII (28x28):");
         for (double[] row : image) {

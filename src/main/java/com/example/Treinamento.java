@@ -18,10 +18,12 @@ public class Treinamento {
         for(int i = 0; i < this.dataSet.images.size(); i++) {
             double[][] imagemEntrada = this.dataSet.images.get(i);
             Main.printImage(imagemEntrada);
-            double[][] flatInput = this.flatten(imagemEntrada);
 
+            double[][] entrada_achatada = this.achatar(imagemEntrada);
+
+            // Forward (ida)
             List<double[][]>[] forwardResult = this.forward(
-                flatInput
+                entrada_achatada
             );
 
             System.out.println("========================================");
@@ -42,23 +44,29 @@ public class Treinamento {
                 }
             }
 
-            System.out.println("----------------------------------------");
             
-            System.out.println("Previsão da Rede (maior ativação): " + neuronioPrevisto);
+            /**
+             * Achata o resultado esperado como foi feito com os valores de entrada
+            */
             int esperado = -1;
-            double[][] label = new double[this.dataSet.labels[i].length][1];
+            double[][] saida_esperada = new double[this.dataSet.labels[i].length][1];
             for (int j = 0; j < this.dataSet.labels[i].length; j++) {
-                label[j][0] = this.dataSet.labels[i][j];
-                if(label[j][0] == 1.0) {
+                saida_esperada[j][0] = this.dataSet.labels[i][j];
+                if(saida_esperada[j][0] == 1.0) {
                     esperado = j;
                 }
             }
-            System.out.print("Valor esperado: " + esperado + "\n");
 
+            System.out.println("----------------------------------------");
+            System.out.println("Previsão da Rede (maior ativação): " + neuronioPrevisto);
+            System.out.println("Valor esperado: " + esperado + "\n");
+
+            // Backpropagation (volta)
             List<double[][]>[] backPropagationResult = this.backPropagation(
-                forwardResult[0], forwardResult[1], label, flatInput
+                forwardResult[0], forwardResult[1], saida_esperada, entrada_achatada
             );
 
+            // Faz o rebalanceamento dos pesos
             this.recalcularPesos(backPropagationResult[0], backPropagationResult[1]);
         }
         
@@ -66,20 +74,34 @@ public class Treinamento {
 
     private List<double[][]>[] forward(double[][] matrizA) throws Exception {
 
+        // Lista com o resultado de cada (Wn * Xn + Bn)
         List<double[][]> z = new ArrayList<>();
+
+        // Lista com os valores de z depois de passarem pela função de ativação 
         List<double[][]> a = new ArrayList<>();
 
+        // Percorre paenas as camadas ocultas
         for (int i = 0; i < this.redeNeural.camadasOcultas.length; i++) {
+            // Pesos entre as camadas atual x proxima
             double[][] pesos = this.redeNeural.pesos[i];
+
+            // Bias da proxima camada
             double[][] bias = this.redeNeural.bias[i];
 
+            /**
+             * -> pesos_atuais @ entrada_atual + bias_prox_camada
+            */
             double[][] zAtual = this.sumMatriz(
                 this.multMatriz(pesos, matrizA),
                 bias
             );
             z.add(zAtual);
+
+            // Valores do ultimo z ativados
             double[][] aAtual = this.ativarValores(zAtual);
             a.add(aAtual);
+
+            // Move a camada pra frente
             matrizA = aAtual;
         }
 
@@ -103,7 +125,24 @@ public class Treinamento {
         return resultado;
     }
 
-    private double[][] flatten(double[][] matriz) {
+    /**
+     * Literalmente achata ->||<- uma matriz
+     * [[1], [2], [3]],
+     * [[4], [5], [6]],
+     * [[7], [8], [9]]
+     * 
+     * [
+     *  [1],
+     *  [2],
+     *  [3],
+     *  [4],
+     *  ...
+     * ]
+     * 
+     * @param matriz - matriz a ser achatada
+     * @return matriz achatada
+    */
+    private double[][] achatar(double[][] matriz) {
         int rows = matriz.length;
         int cols = matriz[0].length;
         double[][] vetor = new double[rows * cols][1];
@@ -117,26 +156,49 @@ public class Treinamento {
     }
 
 
-    private List<double[][]>[] backPropagation(List<double[][]> z, List<double[][]> a, double[][] label, double[][] flatInput) throws Exception {
+    /**
+     * Função que realiza o BackPropagation na rede neural
+     * 
+     * @param z - Lista com o resultado de cada (Wn * Xn + Bn)
+     * @param a - Lista com os valores de z depois de passarem pela função de ativação 
+     * @param saida_esperada - Resultado esperado
+     * @param flatInput - Valores de entrada da rede na epoca atual
+    */
+    private List<double[][]>[] backPropagation(List<double[][]> z, List<double[][]> a, double[][] saida_esperada, double[][] entrada_achatada) throws Exception {
+        // Erros
         List<double[][]> e = new ArrayList<double[][]>();
+
+        // Gradientes dos pesos
         List<double[][]> gw = new ArrayList<double[][]>();
+
+        // Gradientes das bias
         List<double[][]> gb = new ArrayList<double[][]>();
 
-        int numHiddenLayers = this.redeNeural.camadasOcultas.length;
-        int outputLayerIndex = numHiddenLayers;
+        int numCamadasOcultas = this.redeNeural.camadasOcultas.length;
 
-        for(int i = outputLayerIndex; i >= 0; i--) {
-            
-            if(i == outputLayerIndex) {
+        // Varrendo as camadas de trás pra frente
+        for(int i = numCamadasOcultas; i >= 0; i--) {
+            /**
+             * Se for a ultima camada (intermediaria 4 <- saida)
+            */
+            if(i == numCamadasOcultas) {
+                /**
+                 * -> (a[i] - matriz_esperada) * dsigmoid(z[i]
+                 * OBS: A multiplicação '*' é uma multiplicação valor por valor da matriz, como se fosse uma soma entre matrizes 
+                */
                 e.add(
                     this.multProdPorProd(
                         this.subMatriz(
                             a.get(i),
-                            label 
+                            saida_esperada 
                         ),
                         this.desativarValores(z.get(i))
                     )
                 );
+                /**
+                 * -> e[0] @ a_transposta(i - 1)
+                 * OBS: A multiplicação '@' é de fato uma multiplicação entre matrizes, diferente do '*' 
+                */
                 gw.add(
                     this.multMatriz(
                         e.get(0),
@@ -146,6 +208,10 @@ public class Treinamento {
                 gb.add(e.get(0));
 
             } else {
+                /**
+                 * -> matriz_delta_err = (matriz_de_pesos_transposta[i + 1] @ erros_da_camada_anterior) * dsigmoid(z[i])
+                 * OBS: z[i] é o valor dos pesos (Wn * Xn + Bn) na camada i
+                */
                 double[][] delta = this.multProdPorProd(
                     this.multMatriz(
                         this.transporMatriz(
@@ -157,23 +223,34 @@ public class Treinamento {
                 );
                 e.add(delta);
                 
-                double[][] prevActivation;
+                // 
+                double[][] camada_anterior_ativada;
+                // Se for a primeira camada
                 if (i == 0) {
-                    prevActivation = flatInput; 
+                    // Recebe os valores de entrada da rede
+                    camada_anterior_ativada = entrada_achatada; 
                 } else {
-                    prevActivation = a.get(i - 1);
+                    // Recebe os valores dos neuronios da camada atual
+                    camada_anterior_ativada = a.get(i - 1);
                 }
 
+                /**
+                 * -> ultimos_erros_adicionados @ a_transposto
+                 * 
+                 * a_transposto = valores da camada atual ativados e transpostos
+                */
                 gw.add(
                     this.multMatriz(
                         e.get(e.size() - 1),
-                        this.transporMatriz(prevActivation)
+                        this.transporMatriz(camada_anterior_ativada)
                     )
                 );
+                // Adiciona a gb o ultimo erro da lista de erros
                 gb.add(e.get(e.size() - 1));
             }
         }
 
+        // Inverte as listas com os gradientes
         gw = this.inverter(gw);
         gb = this.inverter(gb);
 
@@ -184,12 +261,23 @@ public class Treinamento {
         return backPropagationResult;
     }
 
+    /**
+     * @param gw - Gradientes dos pesos
+     * @param gb - Gradientes das bias
+    */
     private void recalcularPesos(List<double[][]> gw, List<double[][]> gb) throws Exception {
+        // Percorre a lista com as matrizes de pesos e bias
         for(int i = 0; i < this.redeNeural.pesos.length; i++) {
+            /**
+             * Rebalanceia os pesos da camada atual
+             * pesos_atuais - taxa_de_aprendizado * gradientes_dos_pesos_atuais
+            */
             this.redeNeural.pesos[i] = this.subMatriz(
                 this.redeNeural.pesos[i],
                 this.multPorNum(gw.get(i), this.tx_aprendizado)
             );
+
+            // A mesma coisa só que para as bias
             this.redeNeural.bias[i] = this.subMatriz(
                 this.redeNeural.bias[i],
                 this.multPorNum(gb.get(i), this.tx_aprendizado)
@@ -310,6 +398,9 @@ public class Treinamento {
         return matrizTransposta;
     }
 
+    /**
+     * Ativa os valores de uma certa matriz
+    */
     public double[][] ativarValores(double[][] values) {
         double[][] resultMatriz = new double[values.length][values[0].length];
         
@@ -322,6 +413,10 @@ public class Treinamento {
         return resultMatriz;
     }
 
+    /**
+     * Não consegui pensar em um nome bom pra essa função, foi mal :|
+     * Ela joga os valores de uma matriz na derivada da função de ativação
+     */ 
     public double[][] desativarValores(double[][] values) {
         double[][] resultMatriz = new double[values.length][values[0].length];
         
@@ -334,10 +429,16 @@ public class Treinamento {
         return resultMatriz;
     }
 
+    /**
+     * Função de ativação do valor
+    */
     private double sigmoid(double z) {
         return 1 / (1 + Math.exp(z * -1));
     }
 
+    /**
+     * Derivada daa função de ativação
+    */
     private double dsigmoid(double z) {
         return sigmoid(z) * (1 - sigmoid(z));
     }

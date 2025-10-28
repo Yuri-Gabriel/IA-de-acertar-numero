@@ -11,6 +11,12 @@ public class RedeNeural {
     public RedeNeural(DataSet data) {
         this.nEntradas = data.images.get(0).length * data.images.get(0)[0].length;
 
+        /**
+         * Camada oculta 01: 512 neuronios
+         * Camada oculta 02: 256 neuronios
+         * Camada oculta 03: 128 neuronios
+         * Camada oculta 04: 64 neuronios
+        */
         this.camadasOcultas = new int[] {512, 256, 128, 64};
 
         this.nSaidas = 10;
@@ -20,6 +26,9 @@ public class RedeNeural {
 
     }
 
+    /**
+     * Põe valores aleatórios nnas bias da rede
+    */
     private void inicializarBias() {
         this.bias = new double[this.camadasOcultas.length + 1][][];
 
@@ -37,6 +46,9 @@ public class RedeNeural {
         }
     }
 
+    /**
+     * Põe valores aleatórios nos pesos da rede
+    */
     private void inicializarPesos() {
         this.pesos = new double[this.camadasOcultas.length + 1][][];
 
