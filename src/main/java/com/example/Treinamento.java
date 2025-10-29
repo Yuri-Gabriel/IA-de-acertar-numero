@@ -20,7 +20,6 @@ public class Treinamento {
     public void start() throws Exception {
         for(int i = 0; i < this.dataSet.images.size(); i++) {
             double[][] imagemEntrada = this.dataSet.images.get(i);
-            Main.printImage(imagemEntrada);
 
             double[][] entrada_achatada = this.achatar(imagemEntrada);
 
@@ -28,51 +27,112 @@ public class Treinamento {
             List<double[][]>[] forwardResult = this.forward(
                 entrada_achatada
             );
-
-            System.out.println("========================================");
-            System.out.println("--- Saída da Camada (10 neurônios) ---");
             
             List<double[][]> ativacoes = forwardResult[1];
             
             double[][] saidaRede = ativacoes.get(ativacoes.size() - 1);
-
-            double maxAtivacao = -1;
-            int neuronioPrevisto = -1;
-
-            for(int n = 0; n < saidaRede.length; n++) {
-                System.out.printf("Neurônio %d: %.4f\n", n, saidaRede[n][0]);
-                if (saidaRede[n][0] > maxAtivacao) {
-                    maxAtivacao = saidaRede[n][0];
-                    neuronioPrevisto = n;
-                }
-            }
-
             
             /**
              * Achata o resultado esperado como foi feito com os valores de entrada
             */
-            int esperado = -1;
             double[][] saida_esperada = new double[this.dataSet.labels[i].length][1];
             for (int j = 0; j < this.dataSet.labels[i].length; j++) {
                 saida_esperada[j][0] = this.dataSet.labels[i][j];
-                if(saida_esperada[j][0] == 1.0) {
-                    esperado = j;
-                }
             }
-
-            System.out.println("----------------------------------------");
-            System.out.println("Previsão da Rede (maior ativação): " + neuronioPrevisto);
-            System.out.println("Valor esperado: " + esperado);
-            System.out.println("Erro Quadrático Médio (MSE): " + this.MSE);
 
             // Backpropagation (volta)
             List<double[][]>[] backPropagationResult = this.backPropagation(
                 forwardResult[0], forwardResult[1], saida_esperada, entrada_achatada
             );
 
+            System.out.println("****************************************");
+            System.out.println("\u001B[33mTREINAMENTO DA REDE\u001B[0m");
+            System.out.println("****************************************");
+            this.exibirDadosDaEpoca(imagemEntrada, saidaRede, saida_esperada, i + 1);
+            System.out.println("****************************************");
+
             // Faz o rebalanceamento dos pesos
             this.recalcularPesos(backPropagationResult[0], backPropagationResult[1]);
         }
+    }
+
+    public void testar(DataSet dataSetTeste) throws Exception {
+        for(int i = 0; i < dataSetTeste.images.size(); i++) {
+            double[][] imagemEntrada = dataSetTeste.images.get(i);
+
+            double[][] entrada_achatada = this.achatar(imagemEntrada);
+
+            List<double[][]>[] forwardResult = this.forward(
+                entrada_achatada
+            );
+            
+            List<double[][]> ativacoes = forwardResult[1];
+            
+            double[][] saidaRede = ativacoes.get(ativacoes.size() - 1);
+            
+            double[][] saida_esperada = new double[dataSetTeste.labels[i].length][1];
+            for (int j = 0; j < dataSetTeste.labels[i].length; j++) {
+                saida_esperada[j][0] = dataSetTeste.labels[i][j];
+            }
+
+            System.out.println("****************************************");
+            System.out.println("\\u001B[33mTESTANDO A REDE\\u001B[0m");
+            System.out.println("****************************************");
+            this.exibirDadosDaEpoca(imagemEntrada, saidaRede, saida_esperada, i + 1);
+            System.out.println("****************************************");
+        }
+    }
+    private void exibirDadosDaEpoca(double[][] imagem, double[][] saidaRede, double[][] saida_esperada, int epoca) {
+        double maxAtivacao = -1;
+        int neuronioPrevisto = -1;
+
+        if(imagem != null) {
+              System.out.println("Visualização ASCII (28x28):");
+            for (double[] row : imagem) {
+                for (double pixel : row) {
+                    if (pixel < 0.2) System.out.print(" ");
+                    else if (pixel < 0.4) System.out.print(".");
+                    else if (pixel < 0.6) System.out.print(":");
+                    else if (pixel < 0.8) System.out.print("+");
+                    else System.out.print("#");
+                }
+                System.out.println();
+            }
+        }
+      
+
+        System.out.println("========================================");
+        System.out.println("Epoca: " + epoca);
+        System.out.println("========================================");
+        System.out.println("--- Saída da Camada (10 neurônios) ---");
+
+        for(int n = 0; n < saidaRede.length; n++) {
+            System.out.printf("Neurônio %d: %.4f\n", n, saidaRede[n][0]);
+            if (saidaRede[n][0] > maxAtivacao) {
+                maxAtivacao = saidaRede[n][0];
+                neuronioPrevisto = n;
+            }
+        }
+
+        int esperado = -1;
+        for (int j = 0; j < saida_esperada.length; j++) {
+            if(saida_esperada[j][0] == 1.0) {
+                esperado = j;
+            }
+        }
+
+        String corString = "";
+        if(esperado == neuronioPrevisto) {
+            corString = "\u001B[32m"; // Verde
+        } else {
+            corString = "\u001B[31m"; // Vermelho
+        }
+        
+        System.out.println("----------------------------------------");
+        System.out.println(corString + "Previsão da Rede (maior ativação): " + neuronioPrevisto + "\u001B[0m");
+        System.out.println("Valor esperado: " + esperado);
+        System.out.println("Erro Quadrático Médio (MSE): " + this.MSE);
+        System.out.println("----------------------------------------");
     }
 
     private double calc_MSE(double[][] saidaRede, double[][] saidaEsperada) {

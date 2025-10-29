@@ -21,26 +21,13 @@ public class Main {
 
             Treinamento treinamento = new Treinamento(redeNeural, trainData);
             treinamento.start();
+            treinamento.testar(testdata);
 
         } catch (IOException e) {
             System.err.println("Erro ao carregar dados MNIST: " + e.getMessage());
         } catch (Exception e) {
             System.err.println("Erro no treinamento: " + e.getMessage());
             e.printStackTrace();
-        }
-    }
-
-    public static void printImage(double[][] image) {
-        System.out.println("Visualização ASCII (28x28):");
-        for (double[] row : image) {
-            for (double pixel : row) {
-                if (pixel < 0.2) System.out.print(" ");
-                else if (pixel < 0.4) System.out.print(".");
-                else if (pixel < 0.6) System.out.print(":");
-                else if (pixel < 0.8) System.out.print("+");
-                else System.out.print("#");
-            }
-            System.out.println();
         }
     }
 }
