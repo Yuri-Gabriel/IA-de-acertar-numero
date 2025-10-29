@@ -7,11 +7,14 @@ public class Treinamento {
     private RedeNeural redeNeural;
     private DataSet dataSet;
     private double tx_aprendizado;
+    private double MSE;
  
     public Treinamento(RedeNeural redeNeural, DataSet dataSet) {
         this.redeNeural = redeNeural;
         this.dataSet = dataSet;
         this.tx_aprendizado = 0.1;
+
+        this.MSE = 0.0;
     }
 
     public void start() throws Exception {
@@ -59,7 +62,8 @@ public class Treinamento {
 
             System.out.println("----------------------------------------");
             System.out.println("Previsão da Rede (maior ativação): " + neuronioPrevisto);
-            System.out.println("Valor esperado: " + esperado + "\n");
+            System.out.println("Valor esperado: " + esperado);
+            System.out.println("Erro Quadrático Médio (MSE): " + this.MSE);
 
             // Backpropagation (volta)
             List<double[][]>[] backPropagationResult = this.backPropagation(
@@ -69,7 +73,16 @@ public class Treinamento {
             // Faz o rebalanceamento dos pesos
             this.recalcularPesos(backPropagationResult[0], backPropagationResult[1]);
         }
-        
+    }
+
+    private double calc_MSE(double[][] saidaRede, double[][] saidaEsperada) {
+        double sum_erros = 0.0;
+        double media = 0.0;
+        for (int i = 0; i < saidaRede.length; i++) {
+            sum_erros += 0.5 * Math.pow((saidaRede[i][0] - saidaEsperada[i][0]), 2);
+        }
+        media = sum_erros / saidaRede.length;
+        return media;
     }
 
     private List<double[][]>[] forward(double[][] matrizA) throws Exception {
@@ -117,6 +130,8 @@ public class Treinamento {
 
         double[][] aSaida = this.ativarValores(zSaida);
         a.add(aSaida);
+
+        this.MSE = calc_MSE(aSaida, matrizA);
 
         List<double[][]>[] resultado = (List<double[][]>[]) new List[2];
         resultado[0] = z;

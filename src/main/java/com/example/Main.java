@@ -1,7 +1,6 @@
 package com.example;
 
 import java.io.*;
-import java.util.Random;
 
 public class Main {
     public static void main(String[] args) {
